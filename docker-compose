@@ -1,0 +1,170 @@
+# Media System with VPN Docker-Compose
+#
+# Install Docker Desktop
+# Edit the "sample.env" file with the needed values
+# Rename it to just ".env"
+#
+# Run from this folder:
+# docker-compose up -d
+# Ensure you get logged in run:
+#   docker ps
+# You should see all the containers running
+#   docker logs nordlynx
+# You should see nordlynx logged in successfully
+# On the host run "netstat -an | more" and you should see all the new ports in LISTEN status
+# When you configure, each of the ways that radarr/sonarr/etc talk to each other is http://localhost:[port]/
+# So for sonarr to talk to bittorrent for example, it would try to talk to http://localhost:8080
+#
+# All configuration files for each app is stored in this folder, under ./config once started
+# so that they are persistent between runs and also can be moved
+#
+# To administer each service:
+# http://servername:8080        # qbittorrent
+# http://servername:9117        # jackett
+# http://servername:7878        # radarr
+# http://servername:9696        # prowlarr
+# http://servername:8989        # sonarr
+# http://servername:8081        # pihole
+# http://servername:8888        # resilio
+# http://servername:32400/web   # plex
+#
+# To not use a certain container simply comment it's section out below
+# To comment out the VPN container and not use it, simply comment it out
+# then in each other section, uncomment the "ports" section for the vpn tunneled containers
+# and comment the "network_mode: service:vpn" section instead.
+# That's because with the VPN, the network mode "service:vpn" says to route all network
+# options through to the services:vpn container and let it handle it.
+# That's also why the vpn container has all the necessary ports opened.
+# pihole does not go through the VPN.
+
+networks:
+  connection:
+    driver: bridge
+    name: connection
+services:
+  vpn: # Uses the new nordlynx container but can be replaced with any other vpn container
+    image: ghcr.io/bubuntux/nordlynx
+    container_name: nordlynx
+    networks:
+      connection:
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      - net.ipv4.conf.all.rp_filter=2 # Set Reverse Path filter to loose mode
+      - net.ipv6.conf.all.disable_ipv6=1  # Disable ipv6 - recommended if using ipv4 only
+    ports:
+      - 8080:8080 #qbittorrent
+      - 9117:9117 #jackett
+      - 7878:7878 #radarr
+      - 8989:8989 #sonarr
+      - 9696:9696 #prowlarr
+    environment:              
+      - PRIVATE_KEY=${NORDVPN_PRIVATE_KEY}
+      - NETWORK=${LOCAL_SUBNET}
+      - DNS=8.8.8.8,8.8.4.4
+    restart: unless-stopped 
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent
+    container_name: qbittorrent
+    environment:
+      - PUID=${USERID}
+      - PGID=${GROUPID}
+      - TZ=${TIME_ZONE}
+      - WEBUI_PORT=8080
+    volumes:
+      - ./config/qbittorrent:/config
+      - ${LOCAL_DOWNLOAD_FOLDER}:/downloads
+    # ports:
+    #   - 6881:6881
+    #   - 6881:6881/udp
+    #   - 8080:8080
+    network_mode: service:vpn
+    depends_on:
+      - vpn
+    restart: unless-stopped
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:develop
+    container_name: prowlarr
+    environment:
+      - PUID=${USERID}
+      - PGID=${GROUPID}
+      - TZ=TZ=${TIME_ZONE}
+    volumes:
+      - ./config/prowlarr:/config
+    #ports:
+    #  - 9696:9696
+    network_mode: service:vpn
+    depends_on:
+      - vpn
+    restart: unless-stopped  
+  jackett:
+    image: lscr.io/linuxserver/jackett
+    container_name: jackett
+    environment:
+      - PUID=${USERID}
+      - PGID=${GROUPID}
+      - TZ=${TIME_ZONE}
+      - AUTO_UPDATE=true
+    volumes:
+      - ./config/jackett:/config
+      - ${LOCAL_DOWNLOAD_FOLDER}:/downloads
+    # ports:
+    #   - 9117:9117
+    network_mode: service:vpn
+    depends_on:
+      - vpn
+    restart: unless-stopped
+  sonarr:
+    image: lscr.io/linuxserver/sonarr
+    container_name: sonarr
+    environment:
+      - PUID=${USERID}
+      - PGID=${GROUPID}
+      - TZ=${TIME_ZONE}
+    volumes:
+      - ./config/sonarr:/config
+      - ${LOCAL_MEDIA_FOLDER}:/media
+      - ${LOCAL_DOWNLOAD_FOLDER}:/downloads
+    # ports:
+    #   - 8989:8989
+    network_mode: service:vpn
+    depends_on:
+      - vpn
+      - jackett
+      - qbittorrent
+    restart: unless-stopped
+  radarr:
+    image: lscr.io/linuxserver/radarr
+    container_name: radarr
+    environment:
+      - PUID=${USERID}
+      - PGID=${GROUPID}
+      - TZ=${TIME_ZONE}
+    volumes:
+      - ./config/radarr:/config
+      - ${LOCAL_MEDIA_FOLDER}:/media
+      - ${LOCAL_DOWNLOAD_FOLDER}:/downloads
+    # ports:
+    #   - 7878:7878
+    network_mode: service:vpn
+    depends_on:
+      - vpn
+      - jackett
+      - qbittorrent
+    restart: unless-stopped
+  resilio-sync:
+    container_name: resilio-sync
+    image: lscr.io/linuxserver/resilio-sync
+    environment:
+      - PUID=${USERID}
+      - PGID=${GROUPID}
+      - TZ=${TIME_ZONE}
+    volumes:
+      - ./config/resilio:/config
+      - ${RESILIO_DOWNLOADS}:/downloads
+      - ${RESILIO_FOLDERS}:/sync
+    ports:
+      - 8888:8888
+      - 55550:55555
+    restart: unless-stopped
