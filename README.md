@@ -9,11 +9,11 @@
 * Access the various services
 
 ## To administer each service:
-http://servername:8080         qbittorrent
-http://servername:9117         jackett
-http://servername:7878         radarr
-http://servername:9696         prowlarr
-http://servername:8989         sonarr
-http://servername:8081         pihole
-http://servername:8888         resilio
-http://servername:32400/web    plex
+* http://servername:8080         qbittorrent
+* http://servername:9117         jackett
+* http://servername:7878         radarr
+* http://servername:9696         prowlarr
+* http://servername:8989         sonarr
+* http://servername:8081         pihole
+* http://servername:8888         resilio
+* http://servername:32400/web    plex
