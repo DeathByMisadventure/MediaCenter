@@ -168,3 +168,39 @@ services:
       - 8888:8888
       - 55550:55555
     restart: unless-stopped
+  pihole:
+    container_name: pihole
+    image: pihole/pihole:latest
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "67:67/udp"
+      - "8081:80/tcp"
+    environment:
+      TZ: '${TIME_ZONE}'
+      WEBPASSWORD: ${PIHOLE_PASSWORD}
+      FTLCONF_CHECK_DISK: '0'
+    # Volumes store your data between container upgrades
+    volumes:
+      - './config/pihole/:/etc/pihole/'
+      - './config/dnsmasq/:/etc/dnsmasq.d/'
+    # Recommended but not required (DHCP needs NET_ADMIN)
+    #   https://github.com/pi-hole/docker-pi-hole#note-on-capabilities
+    cap_add:
+      - NET_ADMIN
+    restart: unless-stopped
+  plex:
+    image: lscr.io/linuxserver/plex
+    container_name: plex
+    network_mode: host
+    environment:
+      - PUID=${USERID}
+      - PGID=${GROUPID}
+      - VERSION=docker
+      - PLEX_CLAIM=${PLEX_CLAIM}
+    ports:
+      - "32400:32400"
+    volumes:
+      - ./config/plex:/config
+      - ${LOCAL_MEDIA_FOLDER}:/media
+    restart: unless-stopped
