@@ -192,7 +192,6 @@ services:
   plex:
     image: lscr.io/linuxserver/plex
     container_name: plex
-    network_mode: host
     environment:
       - PUID=${USERID}
       - PGID=${GROUPID}
