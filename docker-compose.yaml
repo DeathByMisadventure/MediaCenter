@@ -20,11 +20,9 @@
 #
 # To administer each service:
 # http://servername:8080        # qbittorrent
-# http://servername:9117        # jackett
-# http://servername:7878        # radarr
 # http://servername:9696        # prowlarr
+# http://servername:7878        # radarr
 # http://servername:8989        # sonarr
-# http://servername:8081        # pihole
 # http://servername:8888        # resilio
 # http://servername:32400/web   # plex
 #
@@ -55,15 +53,20 @@ services:
       - net.ipv6.conf.all.disable_ipv6=1  # Disable ipv6 - recommended if using ipv4 only
     ports:
       - 8080:8080 #qbittorrent
-      - 9117:9117 #jackett
       - 7878:7878 #radarr
       - 8989:8989 #sonarr
       - 9696:9696 #prowlarr
     environment:              
       - PRIVATE_KEY=${NORDVPN_PRIVATE_KEY}
-      - NETWORK=${LOCAL_SUBNET}
-      - DNS=8.8.8.8,8.8.4.4
-    restart: unless-stopped 
+      - NETWORK=${VPN_LOCAL_SUBNET}
+      - DNS=8.8.8.8,1.1.1.1
+      - QUERY=filters\[country_id\]=38&filters\[servers_groups\]\[identifier\]=legacy_p2p&filters\[servers_technologies\]\[identifier\]=wireguard_udp
+    restart: always
+#    healthcheck:
+#        test: ["CMD", "dig", "google.com"]
+#        interval: 30s
+#        timeout: 10s
+#        retries: 5
   qbittorrent:
     image: lscr.io/linuxserver/qbittorrent
     container_name: qbittorrent
@@ -73,48 +76,38 @@ services:
       - TZ=${TIME_ZONE}
       - WEBUI_PORT=8080
     volumes:
-      - ./config/qbittorrent:/config
-      - ${LOCAL_DOWNLOAD_FOLDER}:/downloads
-    # ports:
-    #   - 6881:6881
-    #   - 6881:6881/udp
-    #   - 8080:8080
+      - ${BASE_CONFIG_FOLDER}/config/qbittorrent:/config
+      - ${BASE_FOLDER}/${LOCAL_MEDIA_FOLDER}/downloads:/downloads
     network_mode: service:vpn
     depends_on:
-      - vpn
-    restart: unless-stopped
+      vpn:
+        condition: service_healthy
+    restart: always
+    healthcheck:
+      test: [ "CMD", "nc", "-z", "-w2", "localhost", "8080"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
   prowlarr:
     image: lscr.io/linuxserver/prowlarr:develop
     container_name: prowlarr
     environment:
       - PUID=${USERID}
       - PGID=${GROUPID}
-      - TZ=TZ=${TIME_ZONE}
-    volumes:
-      - ./config/prowlarr:/config
-    #ports:
-    #  - 9696:9696
-    network_mode: service:vpn
-    depends_on:
-      - vpn
-    restart: unless-stopped  
-  jackett:
-    image: lscr.io/linuxserver/jackett
-    container_name: jackett
-    environment:
-      - PUID=${USERID}
-      - PGID=${GROUPID}
       - TZ=${TIME_ZONE}
-      - AUTO_UPDATE=true
     volumes:
-      - ./config/jackett:/config
-      - ${LOCAL_DOWNLOAD_FOLDER}:/downloads
-    # ports:
-    #   - 9117:9117
+      - ${BASE_CONFIG_FOLDER}/config/prowlarr:/config
+      - ${BASE_FOLDER}/${LOCAL_MEDIA_FOLDER}:/media
     network_mode: service:vpn
     depends_on:
-      - vpn
-    restart: unless-stopped
+      vpn:
+        condition: service_healthy
+    restart: always
+    healthcheck:
+      test: [ "CMD", "nc", "-z", "-w2", "localhost", "9696"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
   sonarr:
     image: lscr.io/linuxserver/sonarr
     container_name: sonarr
@@ -123,17 +116,22 @@ services:
       - PGID=${GROUPID}
       - TZ=${TIME_ZONE}
     volumes:
-      - ./config/sonarr:/config
-      - ${LOCAL_MEDIA_FOLDER}:/media
-      - ${LOCAL_DOWNLOAD_FOLDER}:/downloads
-    # ports:
-    #   - 8989:8989
+      - ${BASE_CONFIG_FOLDER}/config/sonarr:/config
+      - ${BASE_FOLDER}/${LOCAL_MEDIA_FOLDER}:/media
+    healthcheck:
+      test: [ "CMD", "nc", "-z", "-w2", "localhost", "8989"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
     network_mode: service:vpn
     depends_on:
-      - vpn
-      - jackett
-      - qbittorrent
-    restart: unless-stopped
+      vpn:
+        condition: service_healthy
+      prowlarr:
+        condition: service_healthy
+      qbittorrent:
+        condition: service_healthy
+    restart: always
   radarr:
     image: lscr.io/linuxserver/radarr
     container_name: radarr
@@ -142,17 +140,22 @@ services:
       - PGID=${GROUPID}
       - TZ=${TIME_ZONE}
     volumes:
-      - ./config/radarr:/config
-      - ${LOCAL_MEDIA_FOLDER}:/media
-      - ${LOCAL_DOWNLOAD_FOLDER}:/downloads
-    # ports:
-    #   - 7878:7878
+      - ${BASE_CONFIG_FOLDER}/config/radarr:/config
+      - ${BASE_FOLDER}/${LOCAL_MEDIA_FOLDER}:/media
+    healthcheck:
+      test: [ "CMD", "nc", "-z", "-w2", "localhost", "7878"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
     network_mode: service:vpn
     depends_on:
-      - vpn
-      - jackett
-      - qbittorrent
-    restart: unless-stopped
+      vpn:
+        condition: service_healthy
+      prowlarr:
+        condition: service_healthy
+      qbittorrent:
+        condition: service_healthy
+    restart: always
   resilio-sync:
     container_name: resilio-sync
     image: lscr.io/linuxserver/resilio-sync
@@ -161,34 +164,18 @@ services:
       - PGID=${GROUPID}
       - TZ=${TIME_ZONE}
     volumes:
-      - ./config/resilio:/config
-      - ${RESILIO_DOWNLOADS}:/downloads
-      - ${RESILIO_FOLDERS}:/sync
+      - ${BASE_CONFIG_FOLDER}/config/resilio:/config
+      - ${BASE_FOLDER}/${RESILIO_DOWNLOADS}:/downloads
+      - ${BASE_FOLDER}/${RESILIO_FOLDERS}:/sync
     ports:
       - 8888:8888
-      - 55550:55555
-    restart: unless-stopped
-  pihole:
-    container_name: pihole
-    image: pihole/pihole:latest
-    ports:
-      - "53:53/tcp"
-      - "53:53/udp"
-      - "67:67/udp"
-      - "8081:80/tcp"
-    environment:
-      TZ: '${TIME_ZONE}'
-      WEBPASSWORD: ${PIHOLE_PASSWORD}
-      FTLCONF_CHECK_DISK: '0'
-    # Volumes store your data between container upgrades
-    volumes:
-      - './config/pihole/:/etc/pihole/'
-      - './config/dnsmasq/:/etc/dnsmasq.d/'
-    # Recommended but not required (DHCP needs NET_ADMIN)
-    #   https://github.com/pi-hole/docker-pi-hole#note-on-capabilities
-    cap_add:
-      - NET_ADMIN
-    restart: unless-stopped
+      - 55554:55555
+    restart: always
+    healthcheck:
+      test: [ "CMD", "nc", "-z", "-w2", "localhost", "8888"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
   plex:
     image: lscr.io/linuxserver/plex
     container_name: plex
@@ -200,6 +187,6 @@ services:
     ports:
       - "32400:32400"
     volumes:
-      - ./config/plex:/config
-      - ${LOCAL_MEDIA_FOLDER}:/media
-    restart: unless-stopped
+      - ${BASE_CONFIG_FOLDER}/config/plex:/config
+      - ${BASE_FOLDER}/${LOCAL_MEDIA_FOLDER}:/media
+    restart: always

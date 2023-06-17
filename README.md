@@ -14,6 +14,5 @@
 * http://servername:7878         radarr
 * http://servername:9696         prowlarr
 * http://servername:8989         sonarr
-* http://servername:8081         pihole
 * http://servername:8888         resilio
 * http://servername:32400/web    plex
