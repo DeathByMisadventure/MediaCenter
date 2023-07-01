@@ -23,6 +23,7 @@
 # http://servername:9696        # prowlarr
 # http://servername:7878        # radarr
 # http://servername:8989        # sonarr
+# http://servername:8088        # sabnzbd
 # http://servername:8888        # resilio
 # http://servername:32400/web   # plex
 #
@@ -168,7 +169,7 @@ services:
       - ${BASE_FOLDER}/${LOCAL_MEDIA_FOLDER}/downloads/:/downloads/
       - ${BASE_FOLDER}/${LOCAL_MEDIA_FOLDER}/incomplete-downloads/:/incomplete-downloads/
     ports:
-      - 8080:8080
+      - 8088:8080
     healthcheck:
       test: [ "CMD", "nc", "-z", "-w2", "localhost", "8080"]
       interval: 10s
