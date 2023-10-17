@@ -23,7 +23,7 @@
 # http://servername:9696        # prowlarr
 # http://servername:7878        # radarr
 # http://servername:8989        # sonarr
-# http://servername:8088        # sabnzbd
+# http://servername:8081        # pihole
 # http://servername:8888        # resilio
 # http://servername:32400/web   # plex
 #
@@ -42,7 +42,8 @@ networks:
     name: connection
 services:
   vpn: # Uses the new nordlynx container but can be replaced with any other vpn container
-    image: ghcr.io/bubuntux/nordlynx
+    image: ghcr.io/bubuntux/nordlynx:latest
+    pull_policy: always
     container_name: nordlynx
     networks:
       connection:
@@ -59,17 +60,18 @@ services:
       - 9696:9696 #prowlarr
     environment:              
       - PRIVATE_KEY=${NORDVPN_PRIVATE_KEY}
-      - NETWORK=${VPN_LOCAL_SUBNET}
+      - NET_LOCAL=192.168.0.0/16
       - DNS=8.8.8.8,1.1.1.1
       - QUERY=filters\[country_id\]=38&filters\[servers_groups\]\[identifier\]=legacy_p2p&filters\[servers_technologies\]\[identifier\]=wireguard_udp
     restart: always
-#    healthcheck:
-#        test: ["CMD", "dig", "google.com"]
-#        interval: 30s
-#        timeout: 10s
-#        retries: 5
+    healthcheck:
+        test: curl -f https://google.com || exit 1
+        interval: 30s
+        timeout: 10s
+        retries: 5
   qbittorrent:
-    image: lscr.io/linuxserver/qbittorrent
+    image: lscr.io/linuxserver/qbittorrent:latest
+    pull_policy: always
     container_name: qbittorrent
     environment:
       - PUID=${USERID}
@@ -79,6 +81,10 @@ services:
     volumes:
       - ${BASE_CONFIG_FOLDER}/config/qbittorrent:/config
       - ${BASE_FOLDER}/${LOCAL_MEDIA_FOLDER}/downloads:/downloads
+    # ports:
+    #   - 6881:6881
+    #   - 6881:6881/udp
+    #   - 8080:8080
     network_mode: service:vpn
     depends_on:
       vpn:
@@ -90,7 +96,8 @@ services:
       timeout: 5s
       retries: 60
   prowlarr:
-    image: lscr.io/linuxserver/prowlarr:develop
+    image: lscr.io/linuxserver/prowlarr:latest
+    pull_policy: always
     container_name: prowlarr
     environment:
       - PUID=${USERID}
@@ -99,10 +106,13 @@ services:
     volumes:
       - ${BASE_CONFIG_FOLDER}/config/prowlarr:/config
       - ${BASE_FOLDER}/${LOCAL_MEDIA_FOLDER}:/media
+    #  - ${LOCAL_DOWNLOAD_FOLDER}:/downloads
     network_mode: service:vpn
     depends_on:
       vpn:
         condition: service_healthy
+    # ports:
+    #   - 9696:9696
     restart: always
     healthcheck:
       test: [ "CMD", "nc", "-z", "-w2", "localhost", "9696"]
@@ -110,7 +120,8 @@ services:
       timeout: 5s
       retries: 60
   sonarr:
-    image: lscr.io/linuxserver/sonarr
+    image: lscr.io/linuxserver/sonarr:latest
+    pull_policy: always
     container_name: sonarr
     environment:
       - PUID=${USERID}
@@ -119,6 +130,9 @@ services:
     volumes:
       - ${BASE_CONFIG_FOLDER}/config/sonarr:/config
       - ${BASE_FOLDER}/${LOCAL_MEDIA_FOLDER}:/media
+    #  - ${LOCAL_DOWNLOAD_FOLDER}:/downloads
+    # ports:
+    #   - 8989:8989
     healthcheck:
       test: [ "CMD", "nc", "-z", "-w2", "localhost", "8989"]
       interval: 10s
@@ -134,7 +148,8 @@ services:
         condition: service_healthy
     restart: always
   radarr:
-    image: lscr.io/linuxserver/radarr
+    image: lscr.io/linuxserver/radarr:latest
+    pull_policy: always
     container_name: radarr
     environment:
       - PUID=${USERID}
@@ -143,6 +158,9 @@ services:
     volumes:
       - ${BASE_CONFIG_FOLDER}/config/radarr:/config
       - ${BASE_FOLDER}/${LOCAL_MEDIA_FOLDER}:/media
+    #  - ${LOCAL_DOWNLOAD_FOLDER}:/downloads
+    # ports:
+    #   - 7878:7878
     healthcheck:
       test: [ "CMD", "nc", "-z", "-w2", "localhost", "7878"]
       interval: 10s
@@ -157,31 +175,10 @@ services:
       qbittorrent:
         condition: service_healthy
     restart: always
-  sabnzbd:
-    image: lscr.io/linuxserver/sabnzbd:latest
-    container_name: sabnzbd
-    environment:
-      - PUID=${USERID}
-      - PGID=${GROUPID}
-      - TZ=${TIME_ZONE}
-    volumes:
-      - ${BASE_CONFIG_FOLDER}/config/radarr:/config
-      - ${BASE_FOLDER}/${LOCAL_MEDIA_FOLDER}/downloads/:/downloads/
-      - ${BASE_FOLDER}/${LOCAL_MEDIA_FOLDER}/incomplete-downloads/:/incomplete-downloads/
-    ports:
-      - 8088:8080
-    healthcheck:
-      test: [ "CMD", "nc", "-z", "-w2", "localhost", "8080"]
-      interval: 10s
-      timeout: 5s
-      retries: 60
-    network_mode: service:vpn
-    depends_on:
-      vpn:
-        condition: service_healthy
   resilio-sync:
     container_name: resilio-sync
-    image: lscr.io/linuxserver/resilio-sync
+    image: lscr.io/linuxserver/resilio-sync:latest
+    pull_policy: always
     environment:
       - PUID=${USERID}
       - PGID=${GROUPID}
@@ -200,8 +197,10 @@ services:
       timeout: 5s
       retries: 60
   plex:
-    image: lscr.io/linuxserver/plex
+    image: lscr.io/linuxserver/plex:latest
+    pull_policy: always
     container_name: plex
+ #   network_mode: host
     environment:
       - PUID=${USERID}
       - PGID=${GROUPID}
