@@ -33,6 +33,7 @@
 # That's because with the VPN, the network mode "service:vpn" says to route all network
 # options through to the services:vpn container and let it handle it.
 # That's also why the vpn container has all the necessary ports opened.
+version: "3.9"
 
 networks:
   connection:
@@ -56,16 +57,17 @@ services:
       - 7878:7878 #radarr
       - 8989:8989 #sonarr
       - 9696:9696 #prowlarr
-    environment:              
+    environment:
       - PRIVATE_KEY=${NORDVPN_PRIVATE_KEY}
       - NET_LOCAL=${NORDVPN_LOCAL_SUBNET}
       - DNS=${NORDVPN_DNS_SERVERS}
+ #     - COUNTRY_CODE=${NORDVPN_COUNTRY_CODE}
       - QUERY=filters\[country_id\]=${NORDVPN_COUNTRY_CODE}&filters\[servers_groups\]\[identifier\]=legacy_p2p&filters\[servers_technologies\]\[identifier\]=wireguard_udp
     restart: always
     healthcheck:
         test: curl -f https://www.nordvpn.com || exit 1
         interval: 30s
-        timeout: 10s
+        timeout: 60s
         retries: 5
   qbittorrent:
     image: lscr.io/linuxserver/qbittorrent:latest
@@ -86,7 +88,7 @@ services:
     restart: always
     healthcheck:
       test: [ "CMD", "nc", "-z", "-w2", "localhost", "8080"]
-      interval: 10s
+      interval: 60s
       timeout: 5s
       retries: 60
   prowlarr:
@@ -107,7 +109,7 @@ services:
     restart: always
     healthcheck:
       test: [ "CMD", "nc", "-z", "-w2", "localhost", "9696"]
-      interval: 10s
+      interval: 60s
       timeout: 5s
       retries: 60
   sonarr:
@@ -123,7 +125,7 @@ services:
       - ${BASE_FOLDER}/${LOCAL_MEDIA_FOLDER}:/media
     healthcheck:
       test: [ "CMD", "nc", "-z", "-w2", "localhost", "8989"]
-      interval: 10s
+      interval: 60s
       timeout: 5s
       retries: 60
     network_mode: service:vpn
@@ -148,7 +150,7 @@ services:
       - ${BASE_FOLDER}/${LOCAL_MEDIA_FOLDER}:/media
     healthcheck:
       test: [ "CMD", "nc", "-z", "-w2", "localhost", "7878"]
-      interval: 10s
+      interval: 60s
       timeout: 5s
       retries: 60
     network_mode: service:vpn
@@ -174,11 +176,11 @@ services:
       - ${BASE_FOLDER}/${RESILIO_FOLDERS}:/sync
     ports:
       - 8888:8888
-      - 55554:55555
+      - 55555:55555
     restart: always
     healthcheck:
       test: [ "CMD", "nc", "-z", "-w2", "localhost", "8888"]
-      interval: 10s
+      interval: 60s
       timeout: 5s
       retries: 60
   plex:
