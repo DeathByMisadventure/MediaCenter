@@ -23,7 +23,6 @@
 # http://servername:9696        # prowlarr
 # http://servername:7878        # radarr
 # http://servername:8989        # sonarr
-# http://servername:8888        # resilio
 # http://servername:32400/web   # plex
 #
 # To not use a certain container simply comment it's section out below
@@ -162,27 +161,6 @@ services:
       qbittorrent:
         condition: service_healthy
     restart: always
-  resilio-sync:
-    container_name: resilio-sync
-    image: lscr.io/linuxserver/resilio-sync:latest
-    pull_policy: always
-    environment:
-      - PUID=${USERID}
-      - PGID=${GROUPID}
-      - TZ=${TIME_ZONE}
-    volumes:
-      - ${BASE_CONFIG_FOLDER}/config/resilio:/config
-      - ${BASE_FOLDER}/${RESILIO_DOWNLOADS}:/downloads
-      - ${BASE_FOLDER}/${RESILIO_FOLDERS}:/sync
-    ports:
-      - 8888:8888
-      - 55555:55555
-    restart: always
-    healthcheck:
-      test: [ "CMD", "nc", "-z", "-w2", "localhost", "8888"]
-      interval: 60s
-      timeout: 5s
-      retries: 60
   plex:
     image: lscr.io/linuxserver/plex:latest
     pull_policy: always
