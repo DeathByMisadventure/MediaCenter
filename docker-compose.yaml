@@ -41,7 +41,6 @@ networks:
 services:
   vpn: # Uses the new nordlynx container but can be replaced with any other vpn container
     image: ghcr.io/bubuntux/nordlynx:latest
-    pull_policy: always
     container_name: nordlynx
     networks:
       connection:
@@ -70,7 +69,6 @@ services:
         retries: 5
   qbittorrent:
     image: lscr.io/linuxserver/qbittorrent:latest
-    pull_policy: always
     container_name: qbittorrent
     environment:
       - PUID=${USERID}
@@ -82,8 +80,7 @@ services:
       - ${BASE_FOLDER}/${LOCAL_MEDIA_FOLDER}/downloads:/downloads
     network_mode: service:vpn
     depends_on:
-      vpn:
-        condition: service_healthy
+      - vpn
     restart: always
     healthcheck:
       test: [ "CMD", "nc", "-z", "-w2", "localhost", "8080"]
@@ -92,7 +89,6 @@ services:
       retries: 60
   prowlarr:
     image: lscr.io/linuxserver/prowlarr:latest
-    pull_policy: always
     container_name: prowlarr
     environment:
       - PUID=${USERID}
@@ -103,8 +99,7 @@ services:
       - ${BASE_FOLDER}/${LOCAL_MEDIA_FOLDER}:/media
     network_mode: service:vpn
     depends_on:
-      vpn:
-        condition: service_healthy
+      - vpn
     restart: always
     healthcheck:
       test: [ "CMD", "nc", "-z", "-w2", "localhost", "9696"]
@@ -113,7 +108,6 @@ services:
       retries: 60
   sonarr:
     image: lscr.io/linuxserver/sonarr:latest
-    pull_policy: always
     container_name: sonarr
     environment:
       - PUID=${USERID}
@@ -129,16 +123,12 @@ services:
       retries: 60
     network_mode: service:vpn
     depends_on:
-      vpn:
-        condition: service_healthy
-      prowlarr:
-        condition: service_healthy
-      qbittorrent:
-        condition: service_healthy
+      - vpn
+      - prowlarr
+      - qbittorrent
     restart: always
   radarr:
     image: lscr.io/linuxserver/radarr:latest
-    pull_policy: always
     container_name: radarr
     environment:
       - PUID=${USERID}
@@ -154,20 +144,17 @@ services:
       retries: 60
     network_mode: service:vpn
     depends_on:
-      vpn:
-        condition: service_healthy
-      prowlarr:
-        condition: service_healthy
-      qbittorrent:
-        condition: service_healthy
+      - vpn
+      - prowlarr
+      - qbittorrent
     restart: always
   plex:
     image: lscr.io/linuxserver/plex:latest
-    pull_policy: always
     container_name: plex
     environment:
       - PUID=${USERID}
       - PGID=${GROUPID}
+      - TZ=${TIME_ZONE}
       - VERSION=docker
       - PLEX_CLAIM=${PLEX_CLAIM}
     ports:
