@@ -176,3 +176,9 @@ services:
       - ${BASE_CONFIG_FOLDER}/config/plex:/config
       - ${BASE_FOLDER}/${LOCAL_MEDIA_FOLDER}:/media
     restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-s", "http://localhost:32400/identity"]
+      interval: 90s
+      timeout: 10s
+      retries: 3
+      start_period: 600s
